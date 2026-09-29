@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="nl"><head>
+<html lang="nl">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Glitterplaatjez</title>
@@ -121,25 +122,8 @@
         canvas, img { max-width: 100%; border-radius: 12px; height: auto; display: block; margin: 0 auto; }
         #statusText { font-size: 0.85rem; color: #a090c0; text-align: center; }
     </style>
-    <!-- Volledig ingebouwde, offline GIF-encoder (vervangt externe CDN) -->
-    <script>
-        window.gifshot = {
-            createGIF: function(options, callback) {
-                try {
-                    const images = options.images || [];
-                    if (images.length === 0) {
-                        callback({ error: 'Geen frames gevonden.' });
-                        return;
-                    }
-                    // Valideer en geef direct de frames terug als geanimeerde weergave of datauri
-                    // Hier gebruiken we de eerste of genereren een eenvoudige overgang via de data urls
-                    callback({ error: false, image: images[0] });
-                } catch (e) {
-                    callback({ error: e.message });
-                }
-            }
-        };
-    </script>
+    <!-- Veilige HTTPS CDN link voor gifshot -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gifshot/0.3.2/gifshot.min.js"></script>
 </head>
 <body>
 
@@ -513,8 +497,13 @@
         animate();
 
         generateBtn.addEventListener('click', () => {
+            if (typeof gifshot === 'undefined') {
+                statusText.textContent = 'Fout: gifshot bibliotheek kon niet laden.';
+                return;
+            }
+
             generateBtn.disabled = true;
-            statusText.textContent = 'Bezig met genereren...';
+            statusText.textContent = 'GIF wordt gemaakt...';
 
             setTimeout(() => {
                 try {
@@ -534,11 +523,17 @@
                         images.push(tempCanvas.toDataURL('image/png'));
                     }
 
+                    const speedValNum = parseInt(sparkleSpeedInput.value);
+                    const interval = Math.max(0.05, 0.2 - speedValNum * 0.015);
+
                     gifshot.createGIF({
                         images: images,
                         gifWidth: w,
                         gifHeight: h,
-                        numFrames: numFrames
+                        interval: interval,
+                        numFrames: numFrames,
+                        sampleInterval: 10,
+                        numWorkers: 2
                     }, function (obj) {
                         if (!obj.error) {
                             gifResult.src = obj.image;
@@ -598,6 +593,5 @@
             setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
         });
     </script>
-
-
-</body></html>
+</body>
+</html>
