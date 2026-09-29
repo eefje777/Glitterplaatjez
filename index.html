@@ -192,8 +192,8 @@
             </div>
 
             <div class="control-group">
-                <label for="sparkleDensity">Aantal Glitters (<span id="sparkleVal">150</span>)</label>
-                <input type="range" id="sparkleDensity" min="10" max="500" value="150" step="5">
+                <label for="sparkleDensity">Aantal Glitters (<span id="sparkleVal">120</span>)</label>
+                <input type="range" id="sparkleDensity" min="10" max="300" value="120" step="5">
             </div>
 
             <div class="control-group">
@@ -272,18 +272,19 @@
                 return;
             }
             const aspect = aspectSelect.value;
+            // Kleinere resolutie voor mobiel zodat het niet vastloopt
             if (aspect === 'square') {
-                canvas.width = 600;
-                canvas.height = 600;
+                canvas.width = 400;
+                canvas.height = 400;
             } else if (aspect === 'landscape') {
-                canvas.width = 800;
-                canvas.height = 500;
-            } else if (aspect === 'portrait') {
                 canvas.width = 500;
-                canvas.height = 800;
+                canvas.height = 300;
+            } else if (aspect === 'portrait') {
+                canvas.width = 300;
+                canvas.height = 500;
             } else if (aspect === 'banner') {
-                canvas.width = 1920;
-                canvas.height = 570;
+                canvas.width = 600;
+                canvas.height = 200;
             }
             initSparkles();
         }
@@ -311,7 +312,7 @@
                     const img = new Image();
                     img.onload = () => {
                         uploadedImage = img;
-                        const maxDim = 650;
+                        const maxDim = 400; // Maximaal 400px voor stabiele werking op mobiel
                         if (img.width > img.height) {
                             canvas.width = maxDim;
                             canvas.height = Math.round((img.height / img.width) * maxDim);
@@ -455,7 +456,7 @@
                 targetCtx.textBaseline = 'middle';
                 targetCtx.fillStyle = '#ffffff';
                 targetCtx.shadowColor = glitterColorInput.value || '#ff007f';
-                targetCtx.shadowBlur = 12;
+                targetCtx.shadowBlur = 10;
 
                 const textValue = textInput.value || 'Glitter';
                 const lines = textValue.split('\n');
@@ -496,77 +497,84 @@
         initSparkles();
         animate();
 
-        generateBtn.addEventListener('click', () => {
+        generateBtn.addEventListener('click', async () => {
             if (typeof gifshot === 'undefined') {
                 statusText.textContent = 'Fout: gifshot bibliotheek kon niet laden.';
                 return;
             }
 
             generateBtn.disabled = true;
-            statusText.textContent = 'GIF wordt gemaakt...';
+            statusText.textContent = 'Bezig met voorbereiden...';
 
-            setTimeout(() => {
-                try {
-                    const w = canvas.width;
-                    const h = canvas.height;
-                    const numFrames = 10;
-                    const images = [];
+            // Geef de browser even de tijd om de tekst bij te werken
+            await new Promise(r => setTimeout(r, 50));
 
-                    const tempCanvas = document.createElement('canvas');
-                    tempCanvas.width = w;
-                    tempCanvas.height = h;
-                    const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+            try {
+                const w = canvas.width;
+                const h = canvas.height;
+                const numFrames = 8; // Aantal frames iets verlaagd voor maximale snelheid
+                const images = [];
 
-                    for (let f = 0; f < numFrames; f++) {
-                        const frameTime = (f / numFrames) * Math.PI * 2;
-                        renderFrame(tempCtx, frameTime);
-                        images.push(tempCanvas.toDataURL('image/png'));
-                    }
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = w;
+                tempCanvas.height = h;
+                const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
 
-                    const speedValNum = parseInt(sparkleSpeedInput.value);
-                    const interval = Math.max(0.05, 0.2 - speedValNum * 0.015);
-
-                    gifshot.createGIF({
-                        images: images,
-                        gifWidth: w,
-                        gifHeight: h,
-                        interval: interval,
-                        numFrames: numFrames,
-                        sampleInterval: 10,
-                        numWorkers: 2
-                    }, function (obj) {
-                        if (!obj.error) {
-                            gifResult.src = obj.image;
-                            gifResult.style.display = 'block';
-                            canvas.style.display = 'none';
-
-                            const now = new Date();
-                            const timestamp = now.toISOString().slice(0,10) + '_' + now.toTimeString().slice(0,8).replace(/:/g, '-');
-                            
-                            let customName = 'glitter';
-                            if (modeSelect.value === 'text' && textInput.value.trim() !== '') {
-                                customName = textInput.value.trim().split('\n')[0].toLowerCase().replace(/[^a-z0-9]/g, '_');
-                            } else if (uploadedImage && imageUpload.files[0]) {
-                                customName = imageUpload.files[0].name.replace(/\.[^/.]+$/, "").replace(/[^a-z0-9]/gi, '_');
-                            }
-
-                            generatedFileName = `${customName}_glitter_${timestamp}.gif`;
-                            generatedBase64 = obj.image;
-
-                            downloadBtn.style.display = 'block';
-                            statusText.textContent = `Klaar! Tik op de groene knop om op te slaan.`;
-
-                        } else {
-                            statusText.textContent = 'Fout: ' + obj.error;
-                        }
-                        generateBtn.disabled = false;
-                    });
-
-                } catch (err) {
-                    statusText.textContent = 'Fout bij maken: ' + err.message;
-                    generateBtn.disabled = false;
+                for (let f = 0; f < numFrames; f++) {
+                    statusText.textContent = `Frame ${f + 1} van ${numFrames} renderen...`;
+                    const frameTime = (f / numFrames) * Math.PI * 2;
+                    renderFrame(tempCtx, frameTime);
+                    images.push(tempCanvas.toDataURL('image/png'));
+                    // Korte pauze per frame zodat het scherm niet bevriest
+                    await new Promise(r => setTimeout(r, 20));
                 }
-            }, 50);
+
+                statusText.textContent = 'GIF wordt samengesteld...';
+                await new Promise(r => setTimeout(r, 50));
+
+                const speedValNum = parseInt(sparkleSpeedInput.value);
+                const interval = Math.max(0.05, 0.2 - speedValNum * 0.015);
+
+                gifshot.createGIF({
+                    images: images,
+                    gifWidth: w,
+                    gifHeight: h,
+                    interval: interval,
+                    numFrames: numFrames,
+                    sampleInterval: 10,
+                    numWorkers: 2
+                }, function (obj) {
+                    if (!obj.error) {
+                        gifResult.src = obj.image;
+                        gifResult.style.display = 'block';
+                        canvas.style.display = 'none';
+
+                        const now = new Date();
+                        const timestamp = now.toISOString().slice(0,10) + '_' + now.toTimeString().slice(0,8).replace(/:/g, '-');
+                        
+                        let customName = 'glitter';
+                        if (modeSelect.value === 'text' && textInput.value.trim() !== '') {
+                            customName = textInput.value.trim().split('\n')[0].toLowerCase().replace(/[^a-z0-9]/g, '_');
+                        } else if (uploadedImage && imageUpload.files[0]) {
+                            customName = imageUpload.files[0].name.replace(/\.[^/.]+$/, "").replace(/[^a-z0-9]/gi, '_');
+                        }
+
+                        generatedFileName = `${customName}_glitter_${timestamp}.gif`;
+                        generatedBase64 = obj.image;
+
+                        downloadBtn.style.display = 'block';
+                        statusText.textContent = `Klaar! Tik op de groene knop om op te slaan.`;
+
+                    } else {
+                        statusText.textContent = 'Fout: ' + obj.error;
+                    }
+                    generateBtn.disabled = false;
+                });
+
+            } catch (err) {
+                statusText.textContent = 'Fout bij maken: ' + err.message;
+                generateBtn.disabled = false;
+            }
         });
 
         downloadBtn.addEventListener('click', () => {
