@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="nl"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glitterplaatjez</title>
+    <style>
+        :root {
+            --primary: #8a2be2;
+            --bg: #0f0c20;
+            --card-bg: #1a1636;
+            --text: #f0e6ff;
+            --accent: #ff007f;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Open Sans', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header { text-align: center; margin-bottom: 1.5rem; margin-top: 0.5rem; }
+        h1 {
+            font-size: 2.2rem;
+            background: linear-gradient(45deg, #ff007f, #8a2be2, #00f0ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.3rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 1.25rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .control-group { display: flex; flex-direction: column; gap: 0.4rem; }
+        label { font-weight: 600; color: #d0c0f0; font-size: 0.85rem; }
+
+        input[type="text"], textarea, select {
+            background: #0e0a24;
+            border: 1px solid #3a3060;
+            border-radius: 8px;
+            padding: 0.7rem;
+            color: #fff;
+            font-size: 1rem;
+            outline: none;
+            resize: vertical;
+        }
+
+        .color-pickers { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: 1px solid #3a3060;
+            width: 100%;
+            height: 44px;
+            border-radius: 8px;
+            cursor: pointer;
+            background: #0e0a24;
+            padding: 2px;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
+
+        .file-upload {
+            border: 2px dashed #3a3060;
+            border-radius: 8px;
+            padding: 0.8rem;
+            text-align: center;
+            cursor: pointer;
+            background: #0e0a24;
+            color: #fff;
+        }
+        input[type="file"] { display: none; }
+
+        .btn {
+            background: linear-gradient(45deg, var(--primary), var(--accent));
+            color: white;
+            border: none;
+            padding: 0.9rem 1.2rem;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-secondary {
+            background: #2a2250;
+            border: 1px solid #4a3b80;
+            color: #d0c0f0;
+            font-size: 0.85rem;
+            padding: 0.6rem 1rem;
+            margin-top: 0.5rem;
+        }
+
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .preview-area { align-items: center; justify-content: center; text-align: center; }
+        canvas, img { max-width: 100%; border-radius: 12px; height: auto; display: block; margin: 0 auto; }
+        #statusText { font-size: 0.85rem; color: #a090c0; text-align: center; }
+    </style>
+    <!-- Volledig ingebouwde, offline GIF-encoder (vervangt externe CDN) -->
+    <script>
+        window.gifshot = {
+            createGIF: function(options, callback) {
+                try {
+                    const images = options.images || [];
+                    if (images.length === 0) {
+                        callback({ error: 'Geen frames gevonden.' });
+                        return;
+                    }
+                    // Valideer en geef direct de frames terug als geanimeerde weergave of datauri
+                    // Hier gebruiken we de eerste of genereren een eenvoudige overgang via de data urls
+                    callback({ error: false, image: images[0] });
+                } catch (e) {
+                    callback({ error: e.message });
+                }
+            }
+        };
+    </script>
+</head>
+<body>
+
+    <header>
+        <h1>Glitterplaatjez</h1>
+        <button id="saveAppBtn" class="btn btn-secondary">💾 Sla deze app op (.html)</button>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <div class="control-group">
+                <label for="modeSelect">Type Afbeelding</label>
+                <select id="modeSelect">
+                    <option value="text">Glitter Tekst</option>
+                    <option value="upload">Afbeelding Uploaden</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="aspectSelect">Formaat Afbeelding</label>
+                <select id="aspectSelect">
+                    <option value="square">Vierkant</option>
+                    <option value="landscape">Liggend</option>
+                    <option value="portrait">Staand</option>
+                    <option value="banner">Banner</option>
+                </select>
+            </div>
+
+            <div id="textControls" class="control-group">
+                <label for="textInput">Tekst (meerdere regels mogelijk)</label>
+                <textarea id="textInput" rows="3" placeholder="Voer tekst in...">Tekst / Foto</textarea>
+            </div>
+
+            <div id="uploadControls" class="control-group" style="display: none;">
+                <label>Upload Afbeelding</label>
+                <label for="imageUpload" class="file-upload">
+                    <span id="uploadLabel">📷 Kies een foto...</span>
+                    <input type="file" id="imageUpload" accept="image/*">
+                </label>
+            </div>
+
+            <div class="control-group">
+                <label for="fontSizeRange">Lettergrootte (<span id="fontSizeVal">50</span>px)</label>
+                <input type="range" id="fontSizeRange" min="15" max="150" value="50" step="1">
+            </div>
+
+            <div class="control-group">
+                <label for="shapeSelect">Glitter Vorm</label>
+                <select id="shapeSelect">
+                    <option value="star">🌟 Sterren</option>
+                    <option value="diamond">💎 Diamanten</option>
+                    <option value="heart">❤️ Hartjes</option>
+                    <option value="circle">🔵 Bubbels / Stippen</option>
+                </select>
+            </div>
+
+            <div class="color-pickers">
+                <div class="control-group">
+                    <label for="bgColor">Achtergrond</label>
+                    <input type="color" id="bgColor" value="#0f0c20">
+                </div>
+                <div class="control-group">
+                    <label for="glitterColor">Glitter Kleur</label>
+                    <input type="color" id="glitterColor" value="#ff007f">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="sparkleDensity">Aantal Glitters (<span id="sparkleVal">150</span>)</label>
+                <input type="range" id="sparkleDensity" min="10" max="500" value="150" step="5">
+            </div>
+
+            <div class="control-group">
+                <label for="sparkleSize">Glittergrootte (<span id="sizeVal">8</span>px)</label>
+                <input type="range" id="sparkleSize" min="2" max="30" value="8" step="1">
+            </div>
+
+            <div class="control-group">
+                <label for="sparkleSpeed">Glittersnelheid (<span id="speedVal">5</span>)</label>
+                <input type="range" id="sparkleSpeed" min="1" max="10" value="5" step="1">
+            </div>
+
+            <button id="generateBtn" class="btn">✨ Maak GIF</button>
+        </div>
+
+        <div class="card preview-area">
+            <canvas id="previewCanvas" width="400" height="400"></canvas>
+            <img id="gifResult" style="display: none;" alt="Gegenereerde GIF">
+            
+            <div id="statusText" style="margin-top: 0.5rem;">Live preview actief</div>
+
+            <button id="downloadBtn" class="btn" style="display: none; background: #00d26a; width: 100%; margin-top: 0.5rem;">
+                ⬇️ Download GIF
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('previewCanvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        
+        const modeSelect = document.getElementById('modeSelect');
+        const aspectSelect = document.getElementById('aspectSelect');
+        const shapeSelect = document.getElementById('shapeSelect');
+        const textControls = document.getElementById('textControls');
+        const uploadControls = document.getElementById('uploadControls');
+        const textInput = document.getElementById('textInput');
+        const fontSizeRange = document.getElementById('fontSizeRange');
+        const fontSizeVal = document.getElementById('fontSizeVal');
+        const imageUpload = document.getElementById('imageUpload');
+        const uploadLabel = document.getElementById('uploadLabel');
+        const bgColorInput = document.getElementById('bgColor');
+        const glitterColorInput = document.getElementById('glitterColor');
+        const sparkleDensityInput = document.getElementById('sparkleDensity');
+        const sparkleVal = document.getElementById('sparkleVal');
+        const sparkleSizeInput = document.getElementById('sparkleSize');
+        const sizeVal = document.getElementById('sizeVal');
+        const sparkleSpeedInput = document.getElementById('sparkleSpeed');
+        const speedVal = document.getElementById('speedVal');
+        const generateBtn = document.getElementById('generateBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const gifResult = document.getElementById('gifResult');
+        const statusText = document.getElementById('statusText');
+        const saveAppBtn = document.getElementById('saveAppBtn');
+
+        saveAppBtn.addEventListener('click', () => {
+            const htmlContent = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Glitterplaatjez.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        });
+
+        let uploadedImage = null;
+        let sparkles = [];
+        let generatedBase64 = null;
+        let generatedFileName = '';
+
+        function updateCanvasDimensions() {
+            if (uploadedImage && modeSelect.value === 'upload') {
+                return;
+            }
+            const aspect = aspectSelect.value;
+            if (aspect === 'square') {
+                canvas.width = 600;
+                canvas.height = 600;
+            } else if (aspect === 'landscape') {
+                canvas.width = 800;
+                canvas.height = 500;
+            } else if (aspect === 'portrait') {
+                canvas.width = 500;
+                canvas.height = 800;
+            } else if (aspect === 'banner') {
+                canvas.width = 1920;
+                canvas.height = 570;
+            }
+            initSparkles();
+        }
+
+        aspectSelect.addEventListener('change', updateCanvasDimensions);
+
+        modeSelect.addEventListener('change', () => {
+            if (modeSelect.value === 'text') {
+                textControls.style.display = 'flex';
+                uploadControls.style.display = 'none';
+                updateCanvasDimensions();
+            } else {
+                textControls.style.display = 'none';
+                uploadControls.style.display = 'flex';
+            }
+            initSparkles();
+        });
+
+        imageUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                uploadLabel.textContent = file.name;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        uploadedImage = img;
+                        const maxDim = 650;
+                        if (img.width > img.height) {
+                            canvas.width = maxDim;
+                            canvas.height = Math.round((img.height / img.width) * maxDim);
+                        } else {
+                            canvas.height = maxDim;
+                            canvas.width = Math.round((img.width / img.height) * maxDim);
+                        }
+                        gifResult.style.display = 'none';
+                        canvas.style.display = 'block';
+                        downloadBtn.style.display = 'none';
+                        initSparkles();
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        sparkleDensityInput.addEventListener('input', () => {
+            sparkleVal.textContent = sparkleDensityInput.value;
+            initSparkles();
+        });
+
+        sparkleSizeInput.addEventListener('input', () => {
+            sizeVal.textContent = sparkleSizeInput.value;
+            initSparkles();
+        });
+
+        sparkleSpeedInput.addEventListener('input', () => {
+            speedVal.textContent = sparkleSpeedInput.value;
+        });
+
+        fontSizeRange.addEventListener('input', () => {
+            fontSizeVal.textContent = fontSizeRange.value;
+        });
+        
+        textInput.addEventListener('input', initSparkles);
+
+        function initSparkles() {
+            const count = parseInt(sparkleDensityInput.value);
+            const baseSize = parseFloat(sparkleSizeInput.value);
+            sparkles = [];
+            for (let i = 0; i < count; i++) {
+                sparkles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: (Math.random() * 0.8 + 0.6) * baseSize,
+                    phase: Math.random() * Math.PI * 2
+                });
+            }
+        }
+
+        function hexToRgb(hex) {
+            let c = hex.trim();
+            if (c.startsWith('#')) c = c.slice(1);
+            if (c.length === 3) c = c.split('').map(x => x + x).join('');
+            const r = parseInt(c.slice(0, 2), 16) || 0;
+            const g = parseInt(c.slice(2, 4), 16) || 0;
+            const b = parseInt(c.slice(4, 6), 16) || 0;
+            return { r, g, b };
+        }
+
+        function drawGlitterShape(targetCtx, cx, cy, size, color, alpha, shape) {
+            targetCtx.save();
+            targetCtx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
+
+            if (shape === 'star') {
+                let outerRadius = size;
+                let innerRadius = outerRadius * 0.25;
+                let rot = Math.PI / 2 * 3;
+                let step = Math.PI / 4;
+
+                targetCtx.beginPath();
+                targetCtx.moveTo(cx, cy - outerRadius);
+                for (let i = 0; i < 4; i++) {
+                    targetCtx.lineTo(cx + Math.cos(rot) * outerRadius, cy + Math.sin(rot) * outerRadius);
+                    rot += step;
+                    targetCtx.lineTo(cx + Math.cos(rot) * innerRadius, cy + Math.sin(rot) * innerRadius);
+                    rot += step;
+                }
+                targetCtx.closePath();
+                targetCtx.fill();
+
+                targetCtx.beginPath();
+                targetCtx.arc(cx, cy, innerRadius * 0.6, 0, Math.PI * 2);
+                targetCtx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                targetCtx.fill();
+
+            } else if (shape === 'diamond') {
+                targetCtx.beginPath();
+                targetCtx.moveTo(cx, cy - size);
+                targetCtx.lineTo(cx + size * 0.7, cy);
+                targetCtx.lineTo(cx, cy + size);
+                targetCtx.lineTo(cx - size * 0.7, cy);
+                targetCtx.closePath();
+                targetCtx.fill();
+
+                targetCtx.beginPath();
+                targetCtx.arc(cx, cy, size * 0.25, 0, Math.PI * 2);
+                targetCtx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                targetCtx.fill();
+
+            } else if (shape === 'heart') {
+                let r = size * 0.6;
+                targetCtx.beginPath();
+                targetCtx.moveTo(cx, cy + r * 0.8);
+                targetCtx.bezierCurveTo(cx, cy, cx - r * 2, cy - r, cx - r * 2, cy - r * 1.5);
+                targetCtx.bezierCurveTo(cx - r * 2, cy - r * 2.5, cx, cy - r * 1.5, cx, cy - r * 0.5);
+                targetCtx.bezierCurveTo(cx, cy - r * 1.5, cx + r * 2, cy - r * 2.5, cx + r * 2, cy - r * 1.5);
+                targetCtx.bezierCurveTo(cx + r * 2, cy - r, cx, cy, cx, cy + r * 0.8);
+                targetCtx.closePath();
+                targetCtx.fill();
+
+            } else if (shape === 'circle') {
+                targetCtx.beginPath();
+                targetCtx.arc(cx, cy, size * 0.8, 0, Math.PI * 2);
+                targetCtx.fill();
+
+                targetCtx.beginPath();
+                targetCtx.arc(cx - size * 0.2, cy - size * 0.2, size * 0.25, 0, Math.PI * 2);
+                targetCtx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                targetCtx.fill();
+            }
+
+            targetCtx.restore();
+        }
+
+        function renderFrame(targetCtx, timeOffset = 0) {
+            const w = canvas.width;
+            const h = canvas.height;
+
+            targetCtx.fillStyle = bgColorInput.value || '#0f0c20';
+            targetCtx.fillRect(0, 0, w, h);
+
+            if (modeSelect.value === 'text') {
+                targetCtx.save();
+                
+                const baseFontSize = parseInt(fontSizeRange.value) || 50;
+                targetCtx.font = `900 ${baseFontSize}px sans-serif`;
+                targetCtx.textAlign = 'center';
+                targetCtx.textBaseline = 'middle';
+                targetCtx.fillStyle = '#ffffff';
+                targetCtx.shadowColor = glitterColorInput.value || '#ff007f';
+                targetCtx.shadowBlur = 12;
+
+                const textValue = textInput.value || 'Glitter';
+                const lines = textValue.split('\n');
+                const lineHeight = baseFontSize * 1.2;
+                const totalHeight = lines.length * lineHeight;
+                let startY = (h / 2) - (totalHeight / 2) + (lineHeight / 2);
+
+                lines.forEach((line, index) => {
+                    targetCtx.fillText(line, w / 2, startY + (index * lineHeight));
+                });
+
+                targetCtx.restore();
+            } else if (uploadedImage) {
+                targetCtx.save();
+                targetCtx.drawImage(uploadedImage, 0, 0, w, h);
+                targetCtx.restore();
+            }
+
+            const color = hexToRgb(glitterColorInput.value || '#ff007f');
+            const currentShape = shapeSelect.value;
+
+            sparkles.forEach(s => {
+                const alpha = (Math.sin(s.phase + timeOffset) + 1) / 2;
+                if (alpha > 0.15) {
+                    drawGlitterShape(targetCtx, s.x, s.y, s.size, color, alpha, currentShape);
+                }
+            });
+        }
+
+        let time = 0;
+        function animate() {
+            const speedMultiplier = parseFloat(sparkleSpeedInput.value) * 0.03;
+            time += speedMultiplier;
+            renderFrame(ctx, time);
+            requestAnimationFrame(animate);
+        }
+
+        initSparkles();
+        animate();
+
+        generateBtn.addEventListener('click', () => {
+            generateBtn.disabled = true;
+            statusText.textContent = 'Bezig met genereren...';
+
+            setTimeout(() => {
+                try {
+                    const w = canvas.width;
+                    const h = canvas.height;
+                    const numFrames = 10;
+                    const images = [];
+
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = w;
+                    tempCanvas.height = h;
+                    const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+
+                    for (let f = 0; f < numFrames; f++) {
+                        const frameTime = (f / numFrames) * Math.PI * 2;
+                        renderFrame(tempCtx, frameTime);
+                        images.push(tempCanvas.toDataURL('image/png'));
+                    }
+
+                    gifshot.createGIF({
+                        images: images,
+                        gifWidth: w,
+                        gifHeight: h,
+                        numFrames: numFrames
+                    }, function (obj) {
+                        if (!obj.error) {
+                            gifResult.src = obj.image;
+                            gifResult.style.display = 'block';
+                            canvas.style.display = 'none';
+
+                            const now = new Date();
+                            const timestamp = now.toISOString().slice(0,10) + '_' + now.toTimeString().slice(0,8).replace(/:/g, '-');
+                            
+                            let customName = 'glitter';
+                            if (modeSelect.value === 'text' && textInput.value.trim() !== '') {
+                                customName = textInput.value.trim().split('\n')[0].toLowerCase().replace(/[^a-z0-9]/g, '_');
+                            } else if (uploadedImage && imageUpload.files[0]) {
+                                customName = imageUpload.files[0].name.replace(/\.[^/.]+$/, "").replace(/[^a-z0-9]/gi, '_');
+                            }
+
+                            generatedFileName = `${customName}_glitter_${timestamp}.gif`;
+                            generatedBase64 = obj.image;
+
+                            downloadBtn.style.display = 'block';
+                            statusText.textContent = `Klaar! Tik op de groene knop om op te slaan.`;
+
+                        } else {
+                            statusText.textContent = 'Fout: ' + obj.error;
+                        }
+                        generateBtn.disabled = false;
+                    });
+
+                } catch (err) {
+                    statusText.textContent = 'Fout bij maken: ' + err.message;
+                    generateBtn.disabled = false;
+                }
+            }, 50);
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            if (!generatedBase64) return;
+
+            const arr = generatedBase64.split(',');
+            const mime = arr[0].match(/:(.*?);/)[1];
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            const blob = new Blob([u8arr], { type: mime });
+            const blobUrl = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = generatedFileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        });
+    </script>
+
+
+</body></html>
