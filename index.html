@@ -32,7 +32,13 @@
             background: linear-gradient(45deg, #ff007f, #8a2be2, #00f0ff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 0.3rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .subtitle {
+            font-size: 1rem;
+            color: #d0c0f0;
+            font-weight: 500;
         }
 
         .container {
@@ -107,15 +113,6 @@
             display: inline-block;
         }
 
-        .btn-secondary {
-            background: #2a2250;
-            border: 1px solid #4a3b80;
-            color: #d0c0f0;
-            font-size: 0.85rem;
-            padding: 0.6rem 1rem;
-            margin-top: 0.5rem;
-        }
-
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .preview-area { align-items: center; justify-content: center; text-align: center; }
@@ -129,7 +126,7 @@
 
     <header>
         <h1>Glitterplaatjez</h1>
-        <button id="saveAppBtn" class="btn btn-secondary">💾 Sla deze app op (.html)</button>
+        <div class="subtitle">Glitteren en schitteren ✨️</div>
     </header>
 
     <div class="container">
@@ -247,20 +244,6 @@
         const downloadBtn = document.getElementById('downloadBtn');
         const gifResult = document.getElementById('gifResult');
         const statusText = document.getElementById('statusText');
-        const saveAppBtn = document.getElementById('saveAppBtn');
-
-        saveAppBtn.addEventListener('click', () => {
-            const htmlContent = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
-            const blob = new Blob([htmlContent], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'Glitterplaatjez.html';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
-        });
 
         let uploadedImage = null;
         let sparkles = [];
@@ -272,7 +255,6 @@
                 return;
             }
             const aspect = aspectSelect.value;
-            // Kleinere resolutie voor mobiel zodat het niet vastloopt
             if (aspect === 'square') {
                 canvas.width = 400;
                 canvas.height = 400;
@@ -312,7 +294,7 @@
                     const img = new Image();
                     img.onload = () => {
                         uploadedImage = img;
-                        const maxDim = 400; // Maximaal 400px voor stabiele werking op mobiel
+                        const maxDim = 400;
                         if (img.width > img.height) {
                             canvas.width = maxDim;
                             canvas.height = Math.round((img.height / img.width) * maxDim);
@@ -506,13 +488,12 @@
             generateBtn.disabled = true;
             statusText.textContent = 'Bezig met voorbereiden...';
 
-            // Geef de browser even de tijd om de tekst bij te werken
             await new Promise(r => setTimeout(r, 50));
 
             try {
                 const w = canvas.width;
                 const h = canvas.height;
-                const numFrames = 8; // Aantal frames iets verlaagd voor maximale snelheid
+                const numFrames = 8;
                 const images = [];
 
                 const tempCanvas = document.createElement('canvas');
@@ -525,7 +506,6 @@
                     const frameTime = (f / numFrames) * Math.PI * 2;
                     renderFrame(tempCtx, frameTime);
                     images.push(tempCanvas.toDataURL('image/png'));
-                    // Korte pauze per frame zodat het scherm niet bevriest
                     await new Promise(r => setTimeout(r, 20));
                 }
 
